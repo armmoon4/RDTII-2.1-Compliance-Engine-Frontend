@@ -1,0 +1,498 @@
+import { IndicatorResult, AnalysisRun, DiscoveredDocument, PipelineEvent } from './types';
+
+export const PILLARS_REGISTRY = [
+  { id: 1, name: "Tariffs & Trade Defence" },
+  { id: 2, name: "Public Procurement" },
+  { id: 3, name: "Foreign Direct Investment" },
+  { id: 4, name: "Intellectual Property Rights" },
+  { id: 5, name: "Telecom & Competition" },
+  { id: 6, name: "Cross-border Data" },
+  { id: 7, name: "Data Protection & Privacy" },
+  { id: 8, name: "Intermediary Liability" },
+  { id: 9, name: "Content Access" },
+  { id: 10, name: "Non-technical NTMs" },
+  { id: 11, name: "Standards & Procedures" },
+  { id: 12, name: "Online Sales & Transactions" },
+];
+
+export const INDICATOR_QUESTION_BANK: Record<string, { title: string; question: string; validScores: number[] }> = {
+  "6.1": {
+    title: "Cross-border personal data transfer bans",
+    question: "Does the economy restrict or ban the transfer of personal data to other countries?",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "6.2": {
+    title: "Explicit consent requirements",
+    question: "Is explicit, prior consent mandatory for transferring any personal data abroad?",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "6.3": {
+    title: "Reciprocity and whitelist restrictions",
+    question: "Does the economy condition data transfers on national reciprocity or unilateral whitelist decisions?",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "6.4": {
+    title: "Data localization and local server storage requirements",
+    question: "Are certain datasets required to be hosted locally or copy-stored on local storage servers?",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "7.1": {
+    title: "General Comprehensive Privacy Law",
+    question: "Does the economy lack a comprehensive personal data protection legislative act? (Inverted: Higher score means no framework)",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "7.2": {
+    title: "Independent Protection Authority",
+    question: "Does the economy lack an autonomous, independent public authority supervising data protection? (Inverted)",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "7.3": {
+    title: "Mandatory Data Breach Notifications",
+    question: "Are operators required to report data breaches to the regulator or affected consumers within specified deadlines?",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "7.4": {
+    title: "Compulsory DPO appointment",
+    question: "Are all commercial organizations required to appoint a dedicated Data Protection Officer?",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "8.1": {
+    title: "Intermediary Safe Harbors",
+    question: "Does the economy fail to provide safe harbors protecting internet intermediaries from liability for user-generated content? (Inverted)",
+    validScores: [0.0, 0.5, 1.0]
+  },
+  "12.9": {
+    title: "Online Dispute Resolution (ODR) systems",
+    question: "Does the economy fail to maintain or recognize certified digital platforms for settling consumer contract disputes? (Inverted)",
+    validScores: [0.0, 1.0]
+  }
+};
+
+// Preset documents for audits
+export const PRESET_DOCUMENTS: Record<string, DiscoveredDocument[]> = {
+  "run-malaysia-2026": [
+    {
+      id: 101,
+      run_id: "run-malaysia-2026",
+      url: "https://www.jpdp.gov.my/wp-content/uploads/2023/pdpa_act709.pdf",
+      title: "Personal Data Protection Act 2010 [Act 709]",
+      language: "en",
+      source_type: "PRIMARY_HIGH",
+      enforcement_status: "Active / In Force",
+      zone1_passed: true,
+      download_status: "SUCCESS",
+      created_at: "2026-06-13T10:05:00Z"
+    },
+    {
+      id: 102,
+      run_id: "run-malaysia-2026",
+      url: "https://lom.agc.gov.my/act-709-subsidiary-regulations.pdf",
+      title: "Personal Data Protection Regulations 2013",
+      language: "en",
+      source_type: "PRIMARY_GAZETTE",
+      enforcement_status: "Active / In Force",
+      zone1_passed: true,
+      download_status: "SUCCESS",
+      created_at: "2026-06-13T10:06:12Z"
+    }
+  ],
+  "run-singapore-2026": [
+    {
+      id: 201,
+      run_id: "run-singapore-2026",
+      url: "https://sso.agc.gov.sg/Act/PDPA2012",
+      title: "Personal Data Protection Act 2012 [Act 26 of 2012]",
+      language: "en",
+      source_type: "PRIMARY_HIGH",
+      enforcement_status: "Active / In Force",
+      zone1_passed: true,
+      download_status: "SUCCESS",
+      created_at: "2026-06-14T01:10:02Z"
+    },
+    {
+      id: 202,
+      run_id: "run-singapore-2026",
+      url: "https://sso.agc.gov.sg/SL/ETA2010",
+      title: "Electronic Transactions Act 2010 [Cap 88]",
+      language: "en",
+      source_type: "PRIMARY_HIGH",
+      enforcement_status: "Active / In Force",
+      zone1_passed: true,
+      download_status: "SUCCESS",
+      created_at: "2026-06-14T01:12:30Z"
+    }
+  ],
+  "run-australia-2026": [
+    {
+      id: 301,
+      run_id: "run-australia-2026",
+      url: "https://www.legislation.gov.au/Details/C2024C00125",
+      title: "Privacy Act 1988 (Cth)",
+      language: "en",
+      source_type: "PRIMARY_HIGH",
+      enforcement_status: "Active / In Force",
+      zone1_passed: true,
+      download_status: "SUCCESS",
+      created_at: "2026-06-14T04:22:10Z"
+    }
+  ]
+};
+
+// Preset runs
+export const PRESET_RUNS: AnalysisRun[] = [
+  {
+    id: "run-malaysia-2026",
+    country: "Malaysia",
+    status: "COMPLETE",
+    pillar_ids_requested: [6, 7, 8],
+    created_at: "2026-06-13T10:00:00Z",
+    completed_at: "2026-06-13T10:04:45Z",
+    total_indicators: 10,
+    completed_indicators: 10,
+    llm_provider: "Gemini 1.5 Flash (Google Cloud)"
+  },
+  {
+    id: "run-singapore-2026",
+    country: "Singapore",
+    status: "COMPLETE",
+    pillar_ids_requested: [6, 7, 8],
+    created_at: "2026-06-14T01:05:00Z",
+    completed_at: "2026-06-14T01:09:12Z",
+    total_indicators: 10,
+    completed_indicators: 10,
+    llm_provider: "Nemotron-70B (NV-Free)"
+  },
+  {
+    id: "run-australia-2026",
+    country: "Australia",
+    status: "COMPLETE",
+    pillar_ids_requested: [6, 7],
+    created_at: "2026-06-14T04:15:00Z",
+    completed_at: "2026-06-14T04:18:34Z",
+    total_indicators: 8,
+    completed_indicators: 8,
+    llm_provider: "MiniMax-M3 (Trial Server)"
+  }
+];
+
+export const PRESET_RESULTS: Record<string, IndicatorResult[]> = {
+  "run-malaysia-2026": [
+    {
+      id: 1001,
+      run_id: "run-malaysia-2026",
+      pillar_id: 6,
+      indicator_id: "6.1",
+      raw_score: 0.5,
+      act_and_practice: "Personal Data Protection Act 2010 (Act 709), Section 129",
+      coverage: "Horizontal (Active across all economic sectors)",
+      impact_comments: "Cross-border transfers of personal data are generally restricted unless transferred to countries whitelisted by the Minister or under statutory exceptions (consent, contract, legal proceedings). The blacklist/whitelist mechanism is in law.",
+      timeframe: "Since 15 November 2013",
+      references: "https://www.jpdp.gov.my/wp-content/uploads/2023/pdpa_act709.pdf",
+      note: "Minister whitelists are under review; most transfers currently rely on Section 129(3) consent or contractual exceptions.",
+      confidence: 0.94,
+      verbatim_quote: "A data user shall not transfer any personal data of a data subject to a place outside Malaysia unless to such place as specified by the Minister by notification published in the Gazette.",
+      article_citation: "Personal Data Protection Act 2010, Section 129(1) & (2)",
+      not_found: false,
+      prosecution_score: 0.5,
+      defense_score: 0.5,
+      arbiter_score: 0.5,
+      discovery_tag: "NEW",
+      source_pdf_path: "/data/rules/malaysia/709_sec129.pdf",
+      location_ref: "Part VIII - Transfer of Personal Data Outside Malaysia, p. 74",
+      processing_time: 4.23,
+      mapping_rationale: "Restrictive rule applied horizontally with specific statutory exceptions, resulting in partial restriction scoring (0.5) according to RDTII 2.1 §5."
+    },
+    {
+      id: 1002,
+      run_id: "run-malaysia-2026",
+      pillar_id: 6,
+      indicator_id: "6.2",
+      raw_score: 0.5,
+      act_and_practice: "PDPA 2010, Section 129(3)(a)",
+      coverage: "Horizontal",
+      impact_comments: "Prior consent is an alternative gateway, meaning consent is NOT absolute for everything, but mandatory if no whitelist/contract is present.",
+      timeframe: "Since 2013",
+      references: "https://www.jpdp.gov.my/...pdf",
+      note: "Alternative exception, not absolute requirement. Score set to 0.5.",
+      confidence: 0.88,
+      verbatim_quote: "the data subject has given his consent to the transfer",
+      article_citation: "s. 129(3)(a)",
+      not_found: false,
+      prosecution_score: 1.0,
+      defense_score: 0.5,
+      arbiter_score: 0.5,
+      discovery_tag: "NEW",
+      source_pdf_path: null,
+      location_ref: "p. 74",
+      processing_time: 3.11,
+      mapping_rationale: "Prosecution proposed 1.0 citing consent as sole practical route, but Defense submitted exceptions exist. Arbiter determined 0.5 is correct."
+    },
+    {
+      id: 1003,
+      run_id: "run-malaysia-2026",
+      pillar_id: 6,
+      indicator_id: "6.4",
+      raw_score: 0.0,
+      act_and_practice: "PDPA 2010 (General Review)",
+      coverage: "None",
+      impact_comments: "No general server localization or compulsory replication copy requirements exist under standard Malaysian PDPA.",
+      timeframe: "In Force",
+      references: "https://www.jpdp.gov.my/...pdf",
+      note: "Bank Negara Malaysia (BNM) Policy Document on Risk Management in Technology (RMiT) contains cloud services rules but not explicit server localization.",
+      confidence: 0.91,
+      verbatim_quote: "—",
+      article_citation: "Generative Search Analysis",
+      not_found: true,
+      prosecution_score: 0.0,
+      defense_score: 0.0,
+      arbiter_score: 0.0,
+      discovery_tag: "EXISTING",
+      source_pdf_path: null,
+      location_ref: null,
+      processing_time: 3.82,
+      mapping_rationale: "No clear horizontal legislative mandate forcing local copy storage or servers, scoring 0.0."
+    },
+    {
+      id: 1004,
+      run_id: "run-malaysia-2026",
+      pillar_id: 7,
+      indicator_id: "7.1",
+      raw_score: 0.0,
+      act_and_practice: "Personal Data Protection Act 2010 [Act 709]",
+      coverage: "Horizontal (Excludes Federal/State governments)",
+      impact_comments: "Comprehensive statutory framework governing processing of commercial personal transactions. Inverted indicator: scoring 0.0 since framework exists.",
+      timeframe: "Since 15 November 2013",
+      references: "https://www.jpdp.gov.my/wp-content/uploads/2023/pdpa_act709.pdf",
+      note: "Recently, PDPA Amendment Bill 2024 has passed legislative readings to add notification rules.",
+      confidence: 0.98,
+      verbatim_quote: "An Act to regulate the processing of personal data in commercial transactions and to provide for matters connected therewith and incidental thereto.",
+      article_citation: "Preamble & s. 2(1)",
+      not_found: false,
+      prosecution_score: 0.0,
+      defense_score: 0.0,
+      arbiter_score: 0.0,
+      discovery_tag: "EXISTING",
+      source_pdf_path: null,
+      location_ref: "p. 5",
+      processing_time: 2.15,
+      mapping_rationale: "A durable data privacy regime is established, leading to a score of 0.0 under Section 7.1."
+    },
+    {
+      id: 1005,
+      run_id: "run-malaysia-2026",
+      pillar_id: 7,
+      indicator_id: "7.2",
+      raw_score: 0.0,
+      act_and_practice: "PDPA 2010 Part IX (Section 47)",
+      coverage: "Horizontal",
+      impact_comments: "Establishes the Personal Data Protection Commissioner, acting as the designated supervising authority. Inverted score: 0.0 because an authority exists.",
+      timeframe: "Since 2013",
+      references: "https://www.jpdp.gov.my/...pdf",
+      note: "Commissioner is appointed by Minister of Digital, which is slightly less autonomous than independent tribunals but fits criteria.",
+      confidence: 0.92,
+      verbatim_quote: "There shall be appointed a Personal Data Protection Commissioner who shall be responsible for the administration and enforcement of this Act.",
+      article_citation: "s. 47(1)",
+      not_found: false,
+      prosecution_score: 0.0,
+      defense_score: 0.0,
+      arbiter_score: 0.0,
+      discovery_tag: "EXISTING",
+      source_pdf_path: null,
+      location_ref: "Section 47, p. 30",
+      processing_time: 1.85,
+      mapping_rationale: "Authority is statutory, active, and regularly issues circulars. Confirmed 0.0 score."
+    },
+    {
+      id: 1006,
+      run_id: "run-malaysia-2026",
+      pillar_id: 7,
+      indicator_id: "7.3",
+      raw_score: 0.5,
+      act_and_practice: "PDPA Amendment Bill 2024 & Commissioner Code of Practice",
+      coverage: "Horizontal",
+      impact_comments: "Malaysia historically in practice voluntary breach reports. Effective 2024 Amendments introduce direct mandatory breach notifications. Currently score is partial (0.5) during transition.",
+      timeframe: "Evolving / Sectoral",
+      references: "https://www.jpdp.gov.my/...pdf",
+      note: "Transitioning to fully mandatory under 2024 amendment rules.",
+      confidence: 0.65,
+      verbatim_quote: "Where a personal data breach occurs, the data user shall notify the Commissioner as soon as practicable.",
+      article_citation: "S. 12A (PDPA Amendment Act 2024)",
+      not_found: false,
+      prosecution_score: 1.0,
+      defense_score: 0.0,
+      arbiter_score: 0.5,
+      discovery_tag: "NEW",
+      source_pdf_path: null,
+      location_ref: null,
+      processing_time: 4.88,
+      mapping_rationale: "Flagged for human review. Prosecution wanted 1.0 as the draft is gazetted, defense requested 0.0 as it is not fully enforced. Arbiter scaled to 0.5."
+    },
+    {
+      id: 1007,
+      run_id: "run-malaysia-2026",
+      pillar_id: 7,
+      indicator_id: "7.4",
+      raw_score: 0.5,
+      act_and_practice: "PDPA Amendment Act 2024 & Standard Rules",
+      coverage: "Horizontal",
+      impact_comments: "All data users classified under specific categories will be mandated to designate a qualified Data Protection Officer.",
+      timeframe: "Enacted 2024",
+      references: "PDPA Act 709 amendments",
+      note: "Prior to 2024, only a compliance officer role was recommended.",
+      confidence: 0.85,
+      verbatim_quote: "A data user shall appoint a data protection officer to ensure compliance.",
+      article_citation: "S. 12B (PDPA 1999 amendments)",
+      not_found: false,
+      prosecution_score: 0.5,
+      defense_score: 0.5,
+      arbiter_score: 0.5,
+      discovery_tag: "NEW",
+      source_pdf_path: null,
+      location_ref: null,
+      processing_time: 3.41,
+      mapping_rationale: "Correct score is 0.5 as it targets specific classes of registered data users rather than standard unregulated entities."
+    },
+    {
+      id: 1008,
+      run_id: "run-malaysia-2026",
+      pillar_id: 8,
+      indicator_id: "8.1",
+      raw_score: 0.0,
+      act_and_practice: "Communications and Multimedia Act 1998 (Act 588) & Electronic Transactions Act 2006",
+      coverage: "Horizontal",
+      impact_comments: "Inverted Indicator: 0.0 means safe harbor exists. CMA s. 228 provides general safe harbors for content transmission. Internet service providers are shielded from liability for passing traffic.",
+      timeframe: "Since 1998",
+      references: "Communications and Multimedia Act 1998, Section 228",
+      note: "Social media licensing rules introduced in late 2024 might affect this in the future, currently safe harbor remains valid.",
+      confidence: 0.93,
+      verbatim_quote: "A network service provider is not liable for content provided by another person unless...",
+      article_citation: "CMA Section 228",
+      not_found: false,
+      prosecution_score: 0.0,
+      defense_score: 0.0,
+      arbiter_score: 0.0,
+      discovery_tag: "EXISTING",
+      source_pdf_path: null,
+      location_ref: "p. 110",
+      processing_time: 2.95,
+      mapping_rationale: "Safe harbor protection exists for passive intermediaries, therefore inverted score evaluates to 0.0 (favourable)."
+    }
+  ],
+  "run-singapore-2026": [
+    {
+      id: 2001,
+      run_id: "run-singapore-2026",
+      pillar_id: 6,
+      indicator_id: "6.1",
+      raw_score: 0.5,
+      act_and_practice: "Singapore Personal Data Protection Act 2012, Section 26",
+      coverage: "Horizontal",
+      impact_comments: "PDPA requires transfer of personal data outside Singapore to adhere to standard regulations unless whitelisted, or contractual and standard binding rules are active.",
+      timeframe: "Since 2014",
+      references: "https://sso.agc.gov.sg/Act/PDPA2012",
+      note: "Singapore has strong model clauses and recognized certifications (CBPR/PRP) which makes exception compliance extremely predictable.",
+      confidence: 0.99,
+      verbatim_quote: "An organisation shall not transfer any personal data of an individual to a country or territory outside Singapore except in accordance with...",
+      article_citation: "PDPA 2012, Section 26(1)",
+      not_found: false,
+      prosecution_score: 0.5,
+      defense_score: 0.5,
+      arbiter_score: 0.5,
+      discovery_tag: "NEW",
+      source_pdf_path: null,
+      location_ref: "s. 26",
+      processing_time: 2.11,
+      mapping_rationale: "Horizontal transfer requirement with standard exceptions. Assigned 0.5 (conditional restriction)."
+    },
+    {
+      id: 2002,
+      run_id: "run-singapore-2026",
+      pillar_id: 6,
+      indicator_id: "6.4",
+      raw_score: 0.0,
+      act_and_practice: "PDPA 2012",
+      coverage: "None",
+      impact_comments: "No mandatory server backup or local storage requirement is imposed horizontally on global service companies.",
+      timeframe: "Active",
+      references: "https://sso.agc.gov.sg/Act/PDPA2012",
+      note: "MAS TRM guidelines regulate banks, but there is no horizontal storage restriction.",
+      confidence: 0.96,
+      verbatim_quote: "—",
+      article_citation: "Statutory Review",
+      not_found: true,
+      prosecution_score: 0.0,
+      defense_score: 0.0,
+      arbiter_score: 0.0,
+      discovery_tag: "EXISTING",
+      source_pdf_path: null,
+      location_ref: null,
+      processing_time: 1.88,
+      mapping_rationale: "No data localization horizontal laws found, scoring 0.0."
+    },
+    {
+      id: 2003,
+      run_id: "run-singapore-2026",
+      pillar_id: 7,
+      indicator_id: "7.1",
+      raw_score: 0.0,
+      act_and_practice: "Personal Data Protection Act 2012",
+      coverage: "Horizontal (Government excluded)",
+      impact_comments: "Comprehensive digital privacy, processing, and consent frameworks. Inverted indicator: 0.0 because Singapore has a law.",
+      timeframe: "In Force since 2014",
+      references: "https://sso.agc.gov.sg/Act/PDPA2012",
+      note: "Monitored and maintained rigorously.",
+      confidence: 0.99,
+      verbatim_quote: "An Act to govern the collection, use and disclosure of personal data by organisations...",
+      article_citation: "PDPA long title",
+      not_found: false,
+      prosecution_score: 0.0,
+      defense_score: 0.0,
+      arbiter_score: 0.0,
+      discovery_tag: "EXISTING",
+      source_pdf_path: null,
+      location_ref: "p. 1",
+      processing_time: 1.22,
+      mapping_rationale: "Framework is in force. Score evaluated to 0.0."
+    }
+  ],
+  "run-australia-2026": [
+    {
+      id: 3001,
+      run_id: "run-australia-2026",
+      pillar_id: 6,
+      indicator_id: "6.1",
+      raw_score: 0.5,
+      act_and_practice: "Privacy Act 1988 (Cth), APP 8 (Australian Privacy Principles)",
+      coverage: "Horizontal",
+      impact_comments: "Conditioned with reasonable steps approach (cross-border disclosure rules). If transferred, the local entity remains liable for breaches of the offshore receiver, except under binding laws or prior consent.",
+      timeframe: "Active (APP 8 implemented 2014)",
+      references: "https://www.legislation.gov.au/Details/C2024C00125",
+      note: "Horizontal, conditional transfer rule. Score is 0.5.",
+      confidence: 0.97,
+      verbatim_quote: "Before an APP entity discloses personal information about an individual to an overseas recipient, the entity must take such steps as are reasonable...",
+      article_citation: "Privacy Act 1988 Schedule 1, APP 8.1",
+      not_found: false,
+      prosecution_score: 0.5,
+      defense_score: 0.5,
+      arbiter_score: 0.5,
+      discovery_tag: "EXISTING",
+      source_pdf_path: null,
+      location_ref: "Schedule 1, Australian Privacy Principle 8",
+      processing_time: 2.85,
+      mapping_rationale: "Imposes strict offshore compliance rules, counts as conditional restriction, scoring 0.5."
+    }
+  ]
+};
+
+// Simulation timeline of events
+export const SIMULATED_PIPELINE_FLOW = [
+  { step: 1, elapsed: 0, pct: 10, act: "Generating discovery queries...", type: "SEARCH_QUERY", agent: "discovery", ind: "6.1", msg: "QueryGenerator spawned and translated task into 7 ordered search queries for Australia." },
+  { step: 2, elapsed: 1500, pct: 25, act: "Web searches active...", type: "SEARCH_RESULT", agent: "discovery", ind: "6.1", msg: "WebSearcher triggered DuckDuckGo; early-stopped with 3 viable Commonwealth government results: 'privacy act 1988', 'APP 8 overseas disclosure guidelines'." },
+  { step: 3, elapsed: 3000, pct: 40, act: "Classifying documents...", type: "CLASSIFY", agent: "discovery", ind: "6.1", msg: "Classified PRIMARY_HIGH: https://www.legislation.gov.au/Details/C2024C00125 (Privacy Act 1988 Cth)." },
+  { step: 4, elapsed: 4500, pct: 55, act: "Downloading text...", type: "DOWNLOAD_SUCCESS", agent: "discovery", ind: "6.1", msg: "httpx download success: 172k text characters loaded. Skipping JS rendering fallback." },
+  { step: 5, elapsed: 5500, pct: 70, act: "Running Zone 1 Validator...", type: "ZONE1", agent: "discovery", ind: "6.1", msg: "Zone 1 Validator passed. Verification checks: In force (2026 active), no pending general repeals." },
+  { step: 6, elapsed: 7000, pct: 80, act: "Vector-indexing documents...", type: "EMBED", agent: "discovery", ind: "6.1", msg: "ChromaDB indexed 58 document chunks using sentence-transformers: all-MiniLM-L6-v2." },
+  { step: 7, elapsed: 8500, pct: 90, act: "Prosecution Agent acting...", type: "PROSECUTION_DONE", agent: "prosecution", ind: "6.1", msg: "Prosecution proposed rating=0.5. Source: APP 8 section requires reasonable disclosure steps. Exception found: consent or binding overseas rules." },
+  { step: 8, elapsed: 9500, pct: 95, act: "Defense Agent arguing...", type: "DEFENSE_DONE", agent: "defense", ind: "6.1", msg: "Defense agreed with rating=0.5. Argued APP 8 does not constitute a total ban; safe exceptions exist for model clauses and CBPR networks." },
+  { step: 9, elapsed: 11000, pct: 100, act: "Reconciliation final...", type: "ARBITER_DONE", agent: "arbiter", ind: "6.1", msg: "Arbiter scored Indicator 6.1 as 0.5. Confirmed exact verbatim text from Australian Privacy Principle 8.1. Confidence: 0.98." },
+];

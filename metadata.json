@@ -1,0 +1,6 @@
+{
+  "name": "RDTII 2.1 Compliance Engine",
+  "description": "An interactive, highly polished, and beautifully animated compliance analysis engine and audit dashboard for the RDTII 2.1 specification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_LLM_API"]
+}
