@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "motion/react";
 import { Cpu } from "lucide-react";
+import { ThinkingOrb, OrbState } from "thinking-orbs";
 
 /* ─────────────────────────────────────────────────────────
    COORDINATE MAP  (viewBox 0 0 760 420)
@@ -308,7 +309,14 @@ export default function PipelineArchitecture() {
               <button className={`agp-tb-btn${playing ? "" : " paused"}`} onClick={togglePlay}>
                 {playing ? "PAUSE" : "PLAY"}
               </button>
-              <span className="agp-tb-live">LIVE<span className="agp-cur">_</span></span>
+              <div className="flex items-center gap-1.5 ml-1">
+                <ThinkingOrb 
+                  state={(['listening', 'searching', 'shaping', 'solving', 'working', 'composing', 'composing'][beat] || 'working') as OrbState} 
+                  size={20} 
+                  theme="dark" 
+                />
+                <span className="agp-tb-live">LIVE<span className="agp-cur">_</span></span>
+              </div>
             </div>
           </div>
 

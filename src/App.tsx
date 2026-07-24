@@ -35,6 +35,263 @@ import LiveLogsPanel from './components/LiveLogsPanel';
 import ExportsPanel from './components/ExportsPanel';
 import AuditViewPanel from './components/AuditViewPanel';
 import WelcomeScreen from './components/WelcomeScreen';
+import { ThinkingOrb } from 'thinking-orbs';
+
+const EXPORT_BASE = getApiBase();
+
+function DashboardLatestRunCard({
+  runObj,
+  isExpanded,
+  onToggleExpand,
+  resultsByRun,
+  runEvents,
+  isThemeDark,
+  onDeleteRun,
+  onOpenAudit
+}: {
+  runObj: AnalysisRun;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  resultsByRun: Record<string, IndicatorResult[]>;
+  runEvents: Record<string, PipelineEvent[]>;
+  isThemeDark: boolean;
+  onDeleteRun: (id: string) => void;
+  onOpenAudit: (result: IndicatorResult) => void;
+}) {
+  if (!runObj || !runObj.id) return null;
+
+  const runResults = resultsByRun[runObj.id] || [];
+  const isRunActive = ['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status);
+  const completenessPct = runObj.total_indicators > 0 
+    ? Math.round((runObj.completed_indicators / runObj.total_indicators) * 100) 
+    : 0;
+
+  return (
+    <div 
+      className={`run-card ${
+        isExpanded 
+          ? 'open border-[var(--accent)] ring-1 ring-[var(--accent)]/10' 
+          : ''
+      }`}
+    >
+      {/* Accordion trigger row */}
+      <div 
+        onClick={onToggleExpand}
+        className="run-header cursor-pointer"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="run-icon text-[var(--accent)]">
+            <MapPin className="w-4 h-4" />
+          </div>
+          <div className="truncate">
+            <h4 className="run-country flex items-center gap-2">
+              {runObj.country} Audit
+              <span className={`pill ${
+                runObj.status === 'COMPLETE' 
+                  ? 'pill-green' 
+                  : runObj.status === 'FAILED'
+                    ? 'pill-red'
+                    : 'pill-amber'
+              }`}>
+                {isRunActive ? (
+                  <ThinkingOrb state={runObj.status === 'DISCOVERING' ? 'searching' : 'solving'} size={20} />
+                ) : (
+                  <span className="status-dot bg-current" />
+                )}
+                {runObj.status}
+              </span>
+            </h4>
+            <p className="run-id truncate">
+              ID: {runObj.id} · Model: {runObj.llm_provider}
+            </p>
+          </div>
+        </div>
+
+        {/* Completeness metrics */}
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="run-progress-col">
+            <div className="prog-bg">
+              <div 
+                className={`prog-fill ${isRunActive ? 'active' : 'bg-emerald-500'}`}
+                style={{ width: `${completenessPct}%` }}
+              />
+            </div>
+            <span className="prog-label">
+              {runObj.completed_indicators}/{runObj.total_indicators} pts ({completenessPct}%)
+            </span>
+          </div>
+
+          <div className="run-time hidden md:block">
+            {runObj.created_at ? runObj.created_at.slice(11, 16) : ''} UTC
+          </div>
+
+          <ChevronDown className={`chevron w-4 h-4 text-[var(--text-3)] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+
+      {/* Detail body */}
+      {isExpanded && (
+        <div className="run-body">
+          <div className="run-detail-grid">
+            <div>
+              <div className="dl">Territory Domain</div>
+              <div className="dv font-semibold">{runObj.country}</div>
+            </div>
+            <div>
+              <div className="dl">Pipeline Status</div>
+              <div className="dv text-emerald-500 font-bold uppercase">{runObj.status}</div>
+            </div>
+            <div>
+              <div className="dl">Evaluation Points</div>
+              <div className="dv font-mono font-bold text-[var(--accent)]">{runObj.total_indicators} indicators</div>
+            </div>
+            <div>
+              <div className="dl">System Timestamp</div>
+              <div className="dv font-mono text-xs">{new Date(runObj.created_at).toLocaleString()}</div>
+            </div>
+          </div>
+
+          {/* Live Agent Log Console directly inside/under the active run card */}
+          <div className="mt-4">
+            <LiveLogTerminal 
+              events={runEvents[runObj.id] || []}
+              currentActivity={runObj.current_activity}
+              isStreaming={['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status)}
+              completedIndicators={runObj.completed_indicators}
+              totalIndicators={runObj.total_indicators}
+            />
+          </div>
+
+          {/* Completed checklist database */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between">
+              <h5 className="text-[11px] font-bold text-[var(--text-3)] uppercase tracking-wider flex items-center gap-1.5">
+                <ListChecks className="w-4 h-4 text-[var(--accent)]" />
+                Adversarial Arbitration Matrix Results
+              </h5>
+              
+              <div className="export-row mt-0">
+                <span className="text-[10px] text-[var(--text-3)] font-mono font-bold leading-none uppercase">Downloads:</span>
+                <a 
+                  href={`${EXPORT_BASE}/api/v1/analysis/${runObj.id}/export?format=json`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="export-link"
+                >
+                  <Download className="w-3 h-3" />
+                  JSON
+                </a>
+                <a 
+                  href={`${EXPORT_BASE}/api/v1/analysis/${runObj.id}/export?format=csv`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="export-link"
+                >
+                  <Download className="w-3 h-3" />
+                  CSV
+                </a>
+                <a 
+                  href={`${EXPORT_BASE}/api/v1/analysis/${runObj.id}/export?format=excel`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="export-link"
+                  style={{ background: 'var(--purple-bg)', borderColor: 'var(--purple-bd)', color: 'var(--purple)' }}
+                >
+                  <Download className="w-3 h-3" />
+                  Excel
+                </a>
+              </div>
+            </div>
+
+            {runResults.length === 0 ? (
+              <div className="py-6 text-center text-xs text-[var(--text-3)] italic">
+                {['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status)
+                  ? "Pipeline actively analyzing legal evidence... Structured indicator scores will appear here once arbitration completes."
+                  : "No indicator results found for this run."}
+              </div>
+            ) : (
+              <div className="table-wrapper mt-3">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Consensus</th>
+                      <th>Source Tag</th>
+                      <th>Legislative Enactments & Authority Practice</th>
+                      <th>Classification Pilar</th>
+                      <th className="text-right">Confidence</th>
+                      <th className="text-center">Audit Logs</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runResults.map((result) => {
+                      const scoreColor = result.raw_score !== null 
+                        ? result.raw_score >= 1.0 
+                          ? 'bg-red-500 text-white' 
+                          : result.raw_score >= 0.5 
+                            ? 'bg-amber-500 text-slate-950' 
+                            : 'bg-emerald-500 text-white'
+                        : 'bg-slate-100 text-slate-500';
+
+                      return (
+                        <tr key={result.id}>
+                          <td>{result.indicator_id}</td>
+                          <td className="py-2.5">
+                            <span className={`px-2.5 py-0.5 rounded font-mono text-[10px] font-bold ${scoreColor}`}>
+                              {result.raw_score !== null ? result.raw_score.toFixed(1) : 'Silent'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="pill pill-gray text-[10px]">
+                              {result.discovery_tag}
+                            </span>
+                          </td>
+                          <td className="font-semibold text-[var(--text-2)] max-w-xs truncate">
+                            {result.act_and_practice}
+                          </td>
+                          <td className="text-[var(--text-3)] text-muted">
+                            Pillar {result.pillar_id}
+                          </td>
+                          <td className="text-right font-mono font-bold text-[var(--text-2)]">
+                            {(result.confidence * 100).toFixed(0)}%
+                          </td>
+                          <td className="text-center">
+                            <button 
+                              onClick={() => onOpenAudit(result)}
+                              className="p-1 px-2.5 text-[var(--accent)] hover:bg-[var(--accent-bg)] bg-transparent border border-transparent rounded transition-all inline-flex items-center gap-1 cursor-pointer font-bold text-xs"
+                              title="View audit logs"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Audit</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Infrastructure logs box details */}
+          <div className="flex justify-between items-center pt-4 border-t border-[var(--border)] mt-4">
+            <span className="text-[10px] text-[var(--text-3)] font-mono font-bold uppercase tracking-wide">
+              Arbiter metrics: latency resolved in {runResults.reduce((acc, cr) => acc + cr.processing_time, 0).toFixed(2)}s.
+            </span>
+            <button 
+              onClick={() => onDeleteRun(runObj.id)}
+              className="btn btn-danger font-bold text-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Purge Database records
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   const API_BASE = getApiBase();
@@ -85,6 +342,9 @@ export default function App() {
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Thinking Orbs & Dashboard Card State
+  const [isDashboardCardExpanded, setIsDashboardCardExpanded] = useState<boolean>(true);
+
   // Initial Theme Setup
   useEffect(() => {
     const root = window.document.documentElement;
@@ -123,6 +383,37 @@ export default function App() {
     fetchAll();
   }, [fetchAll]);
 
+  // Target active / latest run automatically
+  const latestRun = useMemo(() => {
+    if (runs.length === 0) return null;
+    return [...runs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  }, [runs]);
+
+  const activeRunId = selectedRunId || latestRun?.id || null;
+  const activeRun = runs.find(r => r.id === activeRunId) || latestRun;
+
+  // ── Run detail lazy loading ────────────────────────────
+  const loadRunDetail = useCallback(async (runId: string) => {
+    const [detail, err] = await getRunDetail(runId);
+    if (err || !detail) return;
+    if (detail.indicator_results) {
+      setResultsByRun(prev => ({ ...prev, [runId]: detail.indicator_results }));
+    }
+  }, []);
+
+  const loadRunEvents = useCallback(async (runId: string) => {
+    const [data, err] = await getRunEvents(runId);
+    if (err || !data || !data.events) return;
+    setRunEvents(prev => ({ ...prev, [runId]: data.events }));
+  }, []);
+
+  // Auto-fetch details and events for the latest run
+  useEffect(() => {
+    if (!latestRun?.id) return;
+    loadRunDetail(latestRun.id);
+    loadRunEvents(latestRun.id);
+  }, [latestRun?.id, loadRunDetail, loadRunEvents]);
+
   // Auto-refresh
   useEffect(() => {
     if (!autoRefresh) return;
@@ -140,26 +431,6 @@ export default function App() {
     });
   }, [activeTab]);
 
-  // ── Run detail lazy loading ────────────────────────────
-  const loadRunDetail = useCallback(async (runId: string) => {
-    const storeKey = `detail-${runId}`;
-    // Only load if we don't already have results
-    if (resultsByRun[runId] && resultsByRun[runId].length > 0) return;
-
-    const [detail, err] = await getRunDetail(runId);
-    if (err || !detail) return;
-    if (detail.indicator_results) {
-      setResultsByRun(prev => ({ ...prev, [runId]: detail.indicator_results }));
-    }
-  }, [resultsByRun]);
-
-  const loadRunEvents = useCallback(async (runId: string) => {
-    if (runEvents[runId] && runEvents[runId].length > 0) return;
-    const [data, err] = await getRunEvents(runId);
-    if (err || !data || !data.events) return;
-    setRunEvents(prev => ({ ...prev, [runId]: data.events }));
-  }, [runEvents]);
-
   // ── Submit analysis ────────────────────────────────────
   const handleSubmitAnalysis = async (country: string, pillarIds: number[] | null, indicatorIds: string[] | null, pdfUrl: string | null, llm: string) => {
     if (isSubmitting) {
@@ -167,6 +438,7 @@ export default function App() {
       return;
     }
     setIsSubmitting(true);
+    setIsDashboardCardExpanded(true); // Auto-expand card when run starts
     setFeedbackMessage({ text: `Submitting analysis for ${country}...`, type: 'info' });
 
     const body: any = { country, llm_provider: llm };
@@ -182,6 +454,12 @@ export default function App() {
     if (status === 200 || status === 202) {
       setFeedbackMessage({ text: `Analysis queued for ${country}.`, type: 'success' });
       await fetchAll();
+      const [runsAfter] = await getRuns();
+      if (runsAfter && runsAfter.length > 0) {
+        const newRun = [...runsAfter].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        setSelectedRunId(newRun.id);
+        loadRunEvents(newRun.id);
+      }
     } else {
       setFeedbackMessage({ text: `Submission failed: ${respBody}`, type: 'error' });
     }
@@ -665,291 +943,55 @@ export default function App() {
               {/* Dynamic stats cards */}
               <StatsPanel runs={runs} />
 
-              {/* Grid with submissions and pipeline log console */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              {/* Submissions Form */}
+              <div className="w-full">
                 <NewAnalysisForm 
                   onSubmit={(c, p, indIds, pdf, llm) => handleSubmitAnalysis(c, p, indIds, pdf, llm)}
                   isSubmitting={isSubmitting}
-                />
-                <LiveLogTerminal 
-                  events={runEvents[selectedRunId || ''] || []}
-                  currentActivity={runs.find(r => r.id === selectedRunId)?.current_activity}
-                  isStreaming={selectedRunId ? ['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runs.find(r => r.id === selectedRunId)?.status || '') : false}
                 />
               </div>
 
               {/* Primary Compliance runs panel */}
               <section className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 shadow-xs">
-                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--border)] pb-4 mb-4 gap-4">
+                <div className="border-b border-[var(--border)] pb-4 mb-4">
                   <div>
                     <h3 className="text-base font-semibold text-[var(--text)] flex items-center gap-2">
                       <ListChecks className="w-4 h-4 text-[var(--accent)]" />
-                      Active Compliance Databases
+                      Latest Active Compliance Database
                     </h3>
                     <p className="text-xs text-[var(--text-3)] mt-0.5">
-                      Completed legislative audits structured under exact 9-column compliance criteria.
+                      Most recent legislative audit — structured under exact 9-column compliance criteria.
                     </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {(['ALL', 'COMPLETE', 'ACTIVE', 'FAILED', 'QUEUED'] as const).map((filterVal) => (
-                      <button
-                        key={filterVal}
-                        onClick={() => setRunsFilter(filterVal)}
-                        className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                          runsFilter === filterVal
-                            ? 'bg-[var(--accent)] text-white'
-                            : 'text-[var(--text-3)] hover:bg-[var(--bg)]'
-                        }`}
-                      >
-                        {filterVal === 'ALL' ? 'Show All' : filterVal.toLowerCase()}
-                      </button>
-                    ))}
                   </div>
                 </div>
 
                 {/* Main list components */}
                 <div className="space-y-4">
-                  {filteredRuns.length === 0 ? (
+                  {runs.length === 0 || !latestRun ? (
                     <div className="py-12 border border-dashed border-[var(--border)] rounded-xl flex flex-col items-center justify-center text-[var(--text-3)] gap-2">
                       <Sliders className="w-10 h-10 text-[var(--border-med)]" />
                       <span className="text-sm font-semibold text-[var(--text)]">
-                        No matches found.
+                        No runs yet.
                       </span>
                       <span className="text-xs max-w-xs text-center">
-                        Try adjusting your search queries or reset the active filter scope.
+                        Submit a new analysis above to see the latest compliance database.
                       </span>
                     </div>
-                  ) : filteredRuns.map((runObj) => {
-                      const isExpanded = selectedRunId === runObj.id;
-                      const runResults = resultsByRun[runObj.id] || [];
-                      const isRunActive = ['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status);
-                      const completenessPct = runObj.total_indicators > 0 
-                        ? Math.round((runObj.completed_indicators / runObj.total_indicators) * 100) 
-                        : 0;
-
-                      return (
-                        <div 
-                          key={runObj.id}
-                          className={`run-card ${
-                            isExpanded 
-                              ? 'open border-[var(--accent)] ring-1 ring-[var(--accent)]/10' 
-                              : ''
-                          }`}
-                        >
-                          {/* Accordion trigger row */}
-                          <div 
-                            onClick={() => {
-                              const newId = isExpanded ? null : runObj.id;
-                              setSelectedRunId(newId);
-                              if (newId) {
-                                loadRunDetail(newId);
-                                if (['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status)) {
-                                  loadRunEvents(newId);
-                                }
-                              }
-                            }}
-                            className="run-header"
-                          >
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="run-icon text-[var(--accent)]">
-                                <MapPin className="w-4 h-4" />
-                              </div>
-                              <div className="truncate">
-                                <h4 className="run-country flex items-center gap-2">
-                                  {runObj.country} Audit
-                                  <span className={`pill ${
-                                    runObj.status === 'COMPLETE' 
-                                      ? 'pill-green' 
-                                      : runObj.status === 'FAILED'
-                                        ? 'pill-red'
-                                        : 'pill-amber'
-                                  }`}>
-                                    <span className="status-dot bg-current" />
-                                    {runObj.status}
-                                  </span>
-                                </h4>
-                                <p className="run-id truncate">
-                                  ID: {runObj.id} · Model: {runObj.llm_provider}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Completeness metrics */}
-                            <div className="flex items-center gap-4 shrink-0">
-                              <div className="run-progress-col">
-                                <div className="prog-bg">
-                                  <div 
-                                    className={`prog-fill ${isRunActive ? 'active' : 'bg-emerald-500'}`}
-                                    style={{ width: `${completenessPct}%` }}
-                                  />
-                                </div>
-                                <span className="prog-label">
-                                  {runObj.completed_indicators}/{runObj.total_indicators} pts ({completenessPct}%)
-                                </span>
-                              </div>
-
-                              <div className="run-time hidden md:block">
-                                {runObj.created_at.slice(11, 16)} UTC
-                              </div>
-
-                              <ChevronDown className="chevron w-4 h-4 text-[var(--text-3)]" />
-                            </div>
-                          </div>
-
-                          {/* Detail body */}
-                          {isExpanded && (
-                            <div className="run-body">
-                              <div className="run-detail-grid">
-                                <div>
-                                  <div className="dl">Territory Domain</div>
-                                  <div className="dv font-semibold">{runObj.country}</div>
-                                </div>
-                                <div>
-                                  <div className="dl">Pipeline Status</div>
-                                  <div className="dv text-emerald-500 font-bold uppercase">{runObj.status}</div>
-                                </div>
-                                <div>
-                                  <div className="dl">Evaluation Points</div>
-                                  <div className="dv font-mono font-bold text-[var(--accent)]">{runObj.total_indicators} indicators</div>
-                                </div>
-                                <div>
-                                  <div className="dl">System Timestamp</div>
-                                  <div className="dv font-mono text-xs">{new Date(runObj.created_at).toLocaleString()}</div>
-                                </div>
-                              </div>
-
-                              {/* Completed checklist database */}
-                              <div className="mt-6">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="text-[11px] font-bold text-[var(--text-3)] uppercase tracking-wider flex items-center gap-1.5">
-                                    <ListChecks className="w-4 h-4 text-[var(--accent)]" />
-                                    Adversarial Arbitration Matrix Results
-                                  </h5>
-                                  
-                                  <div className="export-row mt-0">
-                                    <span className="text-[10px] text-[var(--text-3)] font-mono font-bold leading-none uppercase">Downloads:</span>
-                                    <a 
-                                      href={`${EXPORT_BASE}/api/v1/analysis/${runObj.id}/export?format=json`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="export-link"
-                                    >
-                                      <Download className="w-3 h-3" />
-                                      JSON
-                                    </a>
-                                    <a 
-                                      href={`${EXPORT_BASE}/api/v1/analysis/${runObj.id}/export?format=csv`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="export-link"
-                                    >
-                                      <Download className="w-3 h-3" />
-                                      CSV
-                                    </a>
-                                    <a 
-                                      href={`${EXPORT_BASE}/api/v1/analysis/${runObj.id}/export?format=excel`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="export-link"
-                                      style={{ background: 'var(--purple-bg)', borderColor: 'var(--purple-bd)', color: 'var(--purple)' }}
-                                    >
-                                      <Download className="w-3 h-3" />
-                                      Excel
-                                    </a>
-                                  </div>
-                                </div>
-
-                                {runResults.length === 0 ? (
-                                  <div className="py-8 text-center text-xs text-[var(--text-3)] italic">
-                                    No compliance calculations compiled yet. Wait for discovery crawls to finish.
-                                  </div>
-                                ) : (
-                                  <div className="tbl-wrap">
-                                    <table className="dt">
-                                      <thead>
-                                        <tr>
-                                          <th>Code</th>
-                                          <th>Consensus</th>
-                                          <th>Source Tag</th>
-                                          <th>Legislative Enactments & Authority Practice</th>
-                                          <th>Classification Pilar</th>
-                                          <th className="text-right">Confidence</th>
-                                          <th className="text-center">Audit Logs</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {runResults.map((result) => {
-                                          const scoreColor = result.raw_score !== null 
-                                            ? result.raw_score >= 1.0 
-                                              ? 'bg-red-500 text-white' 
-                                              : result.raw_score >= 0.5 
-                                                ? 'bg-amber-500 text-slate-950' 
-                                                : 'bg-emerald-500 text-white'
-                                            : 'bg-slate-100 text-slate-500';
-
-                                          return (
-                                            <tr key={result.id}>
-                                              <td>{result.indicator_id}</td>
-                                              <td className="py-2.5">
-                                                <span className={`px-2.5 py-0.5 rounded font-mono text-[10px] font-bold ${scoreColor}`}>
-                                                  {result.raw_score !== null ? result.raw_score.toFixed(1) : 'Silent'}
-                                                </span>
-                                              </td>
-                                              <td>
-                                                <span className="pill pill-gray text-[10px]">
-                                                  {result.discovery_tag}
-                                                </span>
-                                              </td>
-                                              <td className="font-semibold text-[var(--text-2)] max-w-xs truncate">
-                                                {result.act_and_practice}
-                                              </td>
-                                              <td className="text-[var(--text-3)] text-muted">
-                                                Pillar {result.pillar_id}
-                                              </td>
-                                              <td className="text-right font-mono font-bold text-[var(--text-2)]">
-                                                {(result.confidence * 100).toFixed(0)}%
-                                              </td>
-                                              <td className="text-center">
-                                                <button 
-                                                  onClick={() => {
-                                                    setSelectedAuditResult(result);
-                                                    setIsAuditOpen(true);
-                                                  }}
-                                                  className="p-1 px-2.5 text-[var(--accent)] hover:bg-[var(--accent-bg)] bg-transparent border border-transparent rounded transition-all inline-flex items-center gap-1 cursor-pointer font-bold text-xs"
-                                                  title="View audit logs"
-                                                >
-                                                  <Eye className="w-3.5 h-3.5" />
-                                                  <span>Audit</span>
-                                                </button>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Infrastructure logs box details */}
-                              <div className="flex justify-between items-center pt-4 border-t border-[var(--border)] mt-4">
-                                <span className="text-[10px] text-[var(--text-3)] font-mono font-bold uppercase tracking-wide">
-                                  Arbiter metrics: latency resolved in {runResults.reduce((acc, cr) => acc + cr.processing_time, 0).toFixed(2)}s.
-                                </span>
-                                <button 
-                                  onClick={() => deleteAnalysisRun(runObj.id)}
-                                  className="btn btn-danger font-bold text-xs"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  Purge Database records
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                    );
-                  })
-                  }
+                  ) : (
+                    <DashboardLatestRunCard 
+                      runObj={latestRun}
+                      isExpanded={isDashboardCardExpanded}
+                      onToggleExpand={() => setIsDashboardCardExpanded(prev => !prev)}
+                      resultsByRun={resultsByRun}
+                      runEvents={runEvents}
+                      isThemeDark={isThemeDark}
+                      onDeleteRun={deleteAnalysisRun}
+                      onOpenAudit={(result) => {
+                        setSelectedAuditResult(result);
+                        setIsAuditOpen(true);
+                      }}
+                    />
+                  )}
                 </div>
               </section>
 
