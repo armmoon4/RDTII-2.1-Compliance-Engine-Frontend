@@ -81,37 +81,73 @@ export default function AllResultsPanel() {
           <div>{offset === 0 ? 'No results in the database yet.' : 'No more results.'}</div>
         </div>
       ) : (
-        <div className="tbl-wrap">
-          <table className="dt" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+        <div className="tbl-wrap shadow-xs border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--surface)]">
+          <table className="dt w-full text-left border-collapse font-sans text-xs">
             <thead>
-              <tr>
-                <th>ID</th><th>Economy</th><th>Law Name</th><th>Law Number / Ref</th><th>Coverage</th>
-                <th>Indicator ID</th><th>Article / Section</th><th>Discovery Tag</th>
-                <th>Verbatim Snippet</th><th>Source URL</th><th>Score</th><th>Confidence</th>
+              <tr className="bg-[var(--surface2)] border-b border-[var(--border)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-3)]">
+                <th className="py-3 px-3">ID</th>
+                <th className="py-3 px-3">Economy</th>
+                <th className="py-3 px-3">Law Name & Citation</th>
+                <th className="py-3 px-3">Indicator Code</th>
+                <th className="py-3 px-3">Coverage</th>
+                <th className="py-3 px-3">Discovery Tag</th>
+                <th className="py-3 px-3">Verbatim Snippet</th>
+                <th className="py-3 px-3 text-center">Score</th>
+                <th className="py-3 px-3 text-right">Confidence</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[var(--border)]">
               {results.map(r => {
                 const parts = (r.indicator_id || '').split('.');
                 const suffix = parts.length > 1 ? parts.slice(1).join('.') : parts[0];
-                const rdtiiId = `P${r.pillar_id || ''}-I${suffix}`;
+                const rdtiiId = `P${r.pillar_id || 'X'}-I${suffix}`;
                 const citation = (r.article_citation || '');
-                const lawRef = citation ? citation.split(',')[0].trim() : '';
-                const confidence = r.confidence != null ? (r.confidence * 100).toFixed(0) + '%' : '';
+
+                const scoreVal = r.raw_score !== null ? r.raw_score.toFixed(1) : null;
+                const scoreBadge = scoreVal === '1.0'
+                  ? 'bg-rose-500/15 border-rose-500/30 text-rose-500 dark:text-rose-400'
+                  : scoreVal === '0.5'
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-500 dark:text-amber-400'
+                    : scoreVal === '0.0'
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-500 dark:text-emerald-400'
+                      : 'bg-slate-500/15 border-slate-500/30 text-slate-400';
+
+                const tagColor = r.discovery_tag === 'KNOWN' ? 'pill-blue' : r.discovery_tag === 'NEW' ? 'pill-green' : 'pill-purple';
+
                 return (
-                  <tr key={r.id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 500 }}>{r.id ?? '—'}</td>
-                    <td>{r.country || ''}</td>
-                    <td>{(r.act_and_practice || '—').slice(0, 50)}</td>
-                    <td>{lawRef || '—'}</td>
-                    <td>{r.coverage || 'N/A'}</td>
-                    <td>{rdtiiId}</td>
-                    <td>{citation || '—'}</td>
-                    <td><span className={`pill ${r.discovery_tag === 'KNOWN' ? 'pill-blue' : 'pill-amber'}`}>{r.discovery_tag || 'NEW'}</span></td>
-                    <td>{(r.verbatim_quote || '—').slice(0, 80)}</td>
-                    <td style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 10 }}>{(r.references || '—').slice(0, 50)}</td>
-                    <td>{r.raw_score != null ? r.raw_score.toFixed(2) : ''}</td>
-                    <td>{confidence}</td>
+                  <tr key={r.id} className="hover:bg-[var(--surface2)]/80 transition-colors">
+                    <td className="py-2.5 px-3 font-mono text-[var(--accent)] font-bold">{r.id ?? '—'}</td>
+                    <td className="py-2.5 px-3 font-semibold text-[var(--text)]">{r.country || 'Global'}</td>
+                    <td className="py-2.5 px-3 max-w-xs">
+                      <div className="font-semibold text-[var(--text-2)] truncate">{(r.act_and_practice || '—')}</div>
+                      {citation && <div className="text-[10px] text-amber-500 font-mono">Ref: {citation}</div>}
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <span className="font-mono text-xs font-bold text-[var(--accent)]">{r.indicator_id}</span>
+                      <span className="text-[9px] font-semibold text-[var(--text-3)] bg-[var(--surface2)] border border-[var(--border)] px-1 py-0.5 rounded ml-1.5">{rdtiiId}</span>
+                    </td>
+                    <td className="py-2.5 px-3 text-[var(--text-3)]">{r.coverage || 'Horizontal'}</td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <span className={`pill ${tagColor} text-[10px] font-bold uppercase`}>{r.discovery_tag || 'KNOWN'}</span>
+                    </td>
+                    <td className="py-2.5 px-3 max-w-xs italic text-[11px] text-[var(--text-3)] truncate font-sans">
+                      {r.verbatim_quote && r.verbatim_quote !== '—' ? `"${r.verbatim_quote}"` : '—'}
+                    </td>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <span className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold border inline-block ${scoreBadge}`}>
+                        {r.raw_score !== null ? r.raw_score.toFixed(1) : 'Silent'}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      {r.confidence != null ? (
+                        <div className="flex items-center justify-end gap-1.5 font-mono font-bold text-xs">
+                          <div className="w-10 bg-[var(--surface2)] border border-[var(--border)] h-1.5 rounded-full overflow-hidden shrink-0">
+                            <div className="bg-sky-400 h-full rounded-full" style={{ width: `${(r.confidence * 100).toFixed(0)}%` }} />
+                          </div>
+                          <span>{(r.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                      ) : '—'}
+                    </td>
                   </tr>
                 );
               })}

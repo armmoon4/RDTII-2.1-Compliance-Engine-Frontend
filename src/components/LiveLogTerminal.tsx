@@ -111,6 +111,12 @@ export default function LiveLogTerminal({
     if (activeOrbState && activeOrbState !== 'auto') {
       return activeOrbState;
     }
+
+    // When not streaming / completed, orb resets to idle listening state
+    if (!isStreaming) {
+      return 'listening';
+    }
+
     const act = (currentActivity || '').toLowerCase();
 
     // 1. Primary check on active status message
@@ -147,6 +153,28 @@ export default function LiveLogTerminal({
 
   const orbState = getOrbState();
 
+  const isFinished = !isStreaming || progress.pct === 100;
+  const displayStateLabel = isFinished ? 'complete' : orbState;
+
+  const getDisplayActivity = (): string => {
+    if (isFinished) {
+      const completionEvent = [...events].reverse().find(e => 
+        (e.message || '').toLowerCase().includes('pipeline complete') || 
+        (e.message || '').toLowerCase().includes('analysis complete')
+      );
+      if (completionEvent) {
+        return completionEvent.message;
+      }
+      if (currentActivity && (currentActivity.toLowerCase().includes('complet') || currentActivity.toLowerCase().includes('finish'))) {
+        return currentActivity;
+      }
+      return 'Pipeline complete — All indicators scored';
+    }
+    return currentActivity || 'Pipeline active...';
+  };
+
+  const displayActivity = getDisplayActivity();
+
   const getAgentColor = (agent: string) => {
     switch (agent) {
       case 'discovery': return 'text-sky-400 dark:text-sky-300';
@@ -173,9 +201,13 @@ export default function LiveLogTerminal({
       <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
         <div className="flex items-center gap-2.5">
           <ThinkingOrb state={orbState} size={20} theme="dark" />
-          <Terminal className="w-3.5 h-3.5 text-amber-500" />
-          <span className="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2 py-0.5 rounded font-mono font-bold uppercase">
-            State: {orbState}
+          <Terminal className="w-3.5 h-3.5 text-blue-400" />
+          <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
+            isFinished
+              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+              : 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
+          }`}>
+            State: {displayStateLabel}
           </span>
         </div>
 
@@ -195,7 +227,7 @@ export default function LiveLogTerminal({
       </div>
 
       {/* Hero Agent Activity & 0-100% Progress Card */}
-      {currentActivity && (
+      {(currentActivity || isFinished) && (
         <div className="mb-3 p-3 bg-slate-900/90 border border-slate-800 rounded-xl text-slate-200 shadow-inner space-y-2">
           <div className="flex items-center justify-between gap-4 text-[11px] font-semibold">
             <div className="flex items-center gap-3 min-w-0">
@@ -204,15 +236,17 @@ export default function LiveLogTerminal({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-amber-400 uppercase tracking-wider font-bold">
-                    Agent State: {orbState}
+                  <span className={`text-[10px] uppercase tracking-wider font-bold ${
+                    isFinished ? 'text-emerald-400' : 'text-blue-400'
+                  }`}>
+                    Agent State: {displayStateLabel}
                   </span>
                   <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/20">
                     {progress.pct}% COMPLETE
                   </span>
                 </div>
                 <div className="text-slate-100 font-bold truncate text-xs mt-0.5">
-                  {currentActivity}
+                  {displayActivity}
                 </div>
               </div>
             </div>

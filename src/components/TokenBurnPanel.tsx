@@ -104,7 +104,7 @@ export default function TokenBurnPanel() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Run ID</th><th>Country</th><th>Status</th><th>Provider</th>
+                      <th style={{ width: 50, textAlign: 'center' }}>#</th><th>Country</th><th>Status</th><th>Provider</th>
                       <th>Input Tokens</th><th>Output Tokens</th><th>Total Tokens</th>
                       <th>Est. Cost</th><th>Indicators</th>
                     </tr>
@@ -112,7 +112,11 @@ export default function TokenBurnPanel() {
                   <tbody>
                     {data.map((t, i) => (
                       <tr key={i}>
-                        <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 500 }}>{(t.run_id || '').slice(0, 8)}...</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[var(--surface2)] text-[var(--accent)] border border-[var(--border)]">
+                            #{data.length - i}
+                          </span>
+                        </td>
                         <td>{t.country}</td>
                         <td><span className={`pill ${t.status === 'COMPLETE' ? 'pill-green' : 'pill-amber'}`}>{t.status}</span></td>
                         <td>{t.llm_provider || 'auto'}</td>

@@ -6,7 +6,8 @@ import {
   Moon, Sun, Code, MapPin, ChevronDown, Trash2, 
   Check, X, AlertTriangle, Fingerprint, Eye,
   Sliders, MessageSquareCode, Download,
-  List, Coins, Globe, Terminal, FileDown, Search as SearchEye, Flag
+  List, Coins, Globe, Terminal, FileDown, Search as SearchEye, Flag,
+  Clock, Scale
 } from 'lucide-react';
 
 import { 
@@ -47,8 +48,10 @@ function DashboardLatestRunCard({
   runEvents,
   isThemeDark,
   onDeleteRun,
-  onOpenAudit
+  onOpenAudit,
+  showTerminal = true
 }: {
+  key?: React.Key;
   runObj: AnalysisRun;
   isExpanded: boolean;
   onToggleExpand: () => void;
@@ -57,6 +60,7 @@ function DashboardLatestRunCard({
   isThemeDark: boolean;
   onDeleteRun: (id: string) => void;
   onOpenAudit: (result: IndicatorResult) => void;
+  showTerminal?: boolean;
 }) {
   if (!runObj || !runObj.id) return null;
 
@@ -94,7 +98,7 @@ function DashboardLatestRunCard({
                     : 'pill-amber'
               }`}>
                 {isRunActive ? (
-                  <ThinkingOrb state={runObj.status === 'DISCOVERING' ? 'searching' : 'solving'} size={20} />
+                  <ThinkingOrb state={runObj.status === 'DISCOVERING' ? 'searching' : 'solving'} size={20} theme="dark" />
                 ) : (
                   <span className="status-dot bg-current" />
                 )}
@@ -102,7 +106,7 @@ function DashboardLatestRunCard({
               </span>
             </h4>
             <p className="run-id truncate">
-              ID: {runObj.id} · Model: {runObj.llm_provider}
+              Model: {runObj.llm_provider}
             </p>
           </div>
         </div>
@@ -152,15 +156,17 @@ function DashboardLatestRunCard({
           </div>
 
           {/* Live Agent Log Console directly inside/under the active run card */}
-          <div className="mt-4">
-            <LiveLogTerminal 
-              events={runEvents[runObj.id] || []}
-              currentActivity={runObj.current_activity}
-              isStreaming={['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status)}
-              completedIndicators={runObj.completed_indicators}
-              totalIndicators={runObj.total_indicators}
-            />
-          </div>
+          {showTerminal && (
+            <div className="mt-4">
+              <LiveLogTerminal 
+                events={runEvents[runObj.id] || []}
+                currentActivity={runObj.current_activity}
+                isStreaming={['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status)}
+                completedIndicators={runObj.completed_indicators}
+                totalIndicators={runObj.total_indicators}
+              />
+            </div>
+          )}
 
           {/* Completed checklist database */}
           <div className="mt-6">
@@ -204,64 +210,141 @@ function DashboardLatestRunCard({
             </div>
 
             {runResults.length === 0 ? (
-              <div className="py-6 text-center text-xs text-[var(--text-3)] italic">
+              <div className="py-8 text-center text-xs text-[var(--text-3)] italic bg-[var(--surface2)]/50 rounded-xl border border-[var(--border)] mt-3">
                 {['DISCOVERING', 'ANALYSING', 'RUNNING'].includes(runObj.status)
                   ? "Pipeline actively analyzing legal evidence... Structured indicator scores will appear here once arbitration completes."
                   : "No indicator results found for this run."}
               </div>
             ) : (
-              <div className="table-wrapper mt-3">
-                <table className="data-table">
+              <div className="tbl-wrap mt-3 shadow-xs overflow-hidden border border-[var(--border)] rounded-xl bg-[var(--surface)]">
+                <table className="dt w-full text-left border-collapse font-sans text-xs">
                   <thead>
-                    <tr>
-                      <th>Code</th>
-                      <th>Consensus</th>
-                      <th>Source Tag</th>
-                      <th>Legislative Enactments & Authority Practice</th>
-                      <th>Classification Pilar</th>
-                      <th className="text-right">Confidence</th>
-                      <th className="text-center">Audit Logs</th>
+                    <tr className="bg-[var(--surface2)] border-b border-[var(--border)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-3)]">
+                      <th className="py-3 px-3.5">ID</th>
+                      <th className="py-3 px-3.5">Economy</th>
+                      <th className="py-3 px-3.5">Law Name & Citation</th>
+                      <th className="py-3 px-3.5">Indicator Code</th>
+                      <th className="py-3 px-3.5">Coverage</th>
+                      <th className="py-3 px-3.5">Discovery Tag</th>
+                      <th className="py-3 px-3.5">Verbatim Snippet</th>
+                      <th className="py-3 px-3.5 text-center">Score</th>
+                      <th className="py-3 px-3.5 text-right">Confidence</th>
+                      <th className="py-3 px-3.5 text-center">Audit</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-[var(--border)]">
                     {runResults.map((result) => {
-                      const scoreColor = result.raw_score !== null 
-                        ? result.raw_score >= 1.0 
-                          ? 'bg-red-500 text-white' 
-                          : result.raw_score >= 0.5 
-                            ? 'bg-amber-500 text-slate-950' 
-                            : 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 text-slate-500';
+                      const scoreVal = result.raw_score !== null ? result.raw_score.toFixed(1) : null;
+                      const scoreBadge = scoreVal === '1.0'
+                        ? { label: '1.0 — Restricted', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-500 dark:text-rose-400' }
+                        : scoreVal === '0.5'
+                          ? { label: '0.5 — Conditional', cls: 'bg-amber-500/15 border-amber-500/30 text-amber-500 dark:text-amber-400' }
+                          : scoreVal === '0.0'
+                            ? { label: '0.0 — Compliant', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-500 dark:text-emerald-400' }
+                            : { label: 'Silent / Not Found', cls: 'bg-slate-500/15 border-slate-500/30 text-slate-400' };
+
+                      const tagColor = result.discovery_tag === 'KNOWN'
+                        ? 'pill-blue'
+                        : result.discovery_tag === 'NEW'
+                          ? 'pill-green'
+                          : 'pill-purple';
+
+                      const parts = (result.indicator_id || '').split('.');
+                      const suffix = parts.length > 1 ? parts.slice(1).join('.') : parts[0];
+                      const rdtiiCode = `P${result.pillar_id || 'X'}-I${suffix}`;
 
                       return (
-                        <tr key={result.id}>
-                          <td>{result.indicator_id}</td>
-                          <td className="py-2.5">
-                            <span className={`px-2.5 py-0.5 rounded font-mono text-[10px] font-bold ${scoreColor}`}>
-                              {result.raw_score !== null ? result.raw_score.toFixed(1) : 'Silent'}
+                        <tr key={result.id} className="hover:bg-[var(--surface2)]/80 transition-colors group">
+                          {/* ID */}
+                          <td className="py-3 px-3.5 align-top font-mono text-[var(--accent)] font-bold text-xs">
+                            {result.id ?? '—'}
+                          </td>
+
+                          {/* Economy */}
+                          <td className="py-3 px-3.5 align-top font-semibold text-[var(--text)] text-xs whitespace-nowrap">
+                            {runObj.country || 'Global'}
+                          </td>
+
+                          {/* Law Name & Citation */}
+                          <td className="py-3 px-3.5 align-top max-w-xs">
+                            <div className="font-semibold text-[var(--text)] text-xs leading-snug">
+                              {result.act_and_practice || 'Statutory Enactment Unspecified'}
+                            </div>
+                            {result.article_citation && (
+                              <div className="text-[10px] text-amber-500 font-mono font-medium mt-0.5 flex items-center gap-1">
+                                <span>Ref:</span>
+                                <span className="bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">{result.article_citation}</span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Indicator Code */}
+                          <td className="py-3 px-3.5 align-top whitespace-nowrap">
+                            <div className="font-mono text-xs font-bold text-[var(--accent)] flex items-center gap-1.5">
+                              <span>{result.indicator_id}</span>
+                              <span className="text-[9px] font-semibold text-[var(--text-3)] bg-[var(--surface2)] border border-[var(--border)] px-1.5 py-0.5 rounded">
+                                {rdtiiCode}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Coverage */}
+                          <td className="py-3 px-3.5 align-top text-[var(--text-3)] text-xs whitespace-nowrap">
+                            {result.coverage || 'Horizontal'}
+                          </td>
+
+                          {/* Discovery Tag */}
+                          <td className="py-3 px-3.5 align-top whitespace-nowrap">
+                            <span className={`pill ${tagColor} text-[10px] font-bold uppercase tracking-wider`}>
+                              {result.discovery_tag || 'KNOWN'}
                             </span>
                           </td>
-                          <td>
-                            <span className="pill pill-gray text-[10px]">
-                              {result.discovery_tag}
+
+                          {/* Verbatim Snippet */}
+                          <td className="py-3 px-3.5 align-top max-w-xs">
+                            {result.verbatim_quote && result.verbatim_quote !== '—' ? (
+                              <div className="text-[11px] text-[var(--text-3)] italic line-clamp-2 bg-[var(--surface2)]/60 p-1.5 rounded border border-[var(--border)] font-sans">
+                                "{result.verbatim_quote}"
+                              </div>
+                            ) : (
+                              <span className="text-[var(--text-4)] italic">—</span>
+                            )}
+                          </td>
+
+                          {/* Score */}
+                          <td className="py-3 px-3.5 align-top whitespace-nowrap text-center">
+                            <span className={`px-2.5 py-1 rounded-md font-mono text-[10px] font-bold border inline-block ${scoreBadge.cls}`}>
+                              {scoreBadge.label}
                             </span>
+                            <div className="mt-1 flex items-center justify-center gap-1">
+                              <span className="text-[9px] font-mono text-indigo-400 bg-indigo-500/10 px-1 py-0.2 rounded" title="Prosecution">P:{result.prosecution_score !== null ? result.prosecution_score.toFixed(1) : '—'}</span>
+                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded" title="Defense">D:{result.defense_score !== null ? result.defense_score.toFixed(1) : '—'}</span>
+                            </div>
                           </td>
-                          <td className="font-semibold text-[var(--text-2)] max-w-xs truncate">
-                            {result.act_and_practice}
+
+                          {/* Confidence */}
+                          <td className="py-3 px-3.5 align-top whitespace-nowrap text-right">
+                            <div className="flex items-center justify-end gap-1.5 font-mono font-bold text-xs">
+                              <div className="w-10 bg-[var(--surface2)] border border-[var(--border)] h-1.5 rounded-full overflow-hidden shrink-0">
+                                <div 
+                                  className={`h-full rounded-full ${
+                                    result.confidence >= 0.7 ? 'bg-emerald-500' : result.confidence >= 0.4 ? 'bg-amber-500' : 'bg-rose-500'
+                                  }`} 
+                                  style={{ width: `${(result.confidence * 100).toFixed(0)}%` }} 
+                                />
+                              </div>
+                              <span>{(result.confidence * 100).toFixed(0)}%</span>
+                            </div>
                           </td>
-                          <td className="text-[var(--text-3)] text-muted">
-                            Pillar {result.pillar_id}
-                          </td>
-                          <td className="text-right font-mono font-bold text-[var(--text-2)]">
-                            {(result.confidence * 100).toFixed(0)}%
-                          </td>
-                          <td className="text-center">
+
+                          {/* Audit */}
+                          <td className="py-3 px-3.5 align-top whitespace-nowrap text-center">
                             <button 
                               onClick={() => onOpenAudit(result)}
-                              className="p-1 px-2.5 text-[var(--accent)] hover:bg-[var(--accent-bg)] bg-transparent border border-transparent rounded transition-all inline-flex items-center gap-1 cursor-pointer font-bold text-xs"
-                              title="View audit logs"
+                              className="btn btn-sm btn-ghost hover:bg-[var(--accent-bg)] hover:text-[var(--accent)] hover:border-[var(--accent)] text-[var(--accent)] font-bold text-xs shadow-xs cursor-pointer"
+                              title="View full audit breakdown"
                             >
-                              <Eye className="w-3.5 h-3.5" />
+                              <Eye className="w-3.5 h-3.5 text-[var(--accent)]" />
                               <span>Audit</span>
                             </button>
                           </td>
@@ -274,17 +357,33 @@ function DashboardLatestRunCard({
             )}
           </div>
 
-          {/* Infrastructure logs box details */}
-          <div className="flex justify-between items-center pt-4 border-t border-[var(--border)] mt-4">
-            <span className="text-[10px] text-[var(--text-3)] font-mono font-bold uppercase tracking-wide">
-              Arbiter metrics: latency resolved in {runResults.reduce((acc, cr) => acc + cr.processing_time, 0).toFixed(2)}s.
-            </span>
+          {/* Infrastructure logs box details & Metrics Footer */}
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 p-3 bg-[var(--surface2)]/80 border border-[var(--border)] rounded-xl mt-4">
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+              <div className="flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] px-2.5 py-1 rounded-lg text-[var(--text-2)] font-semibold">
+                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <span>Latency: <strong className="text-[var(--text)]">{runResults.reduce((acc, cr) => acc + (cr.processing_time || 0), 0).toFixed(2)}s</strong></span>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] px-2.5 py-1 rounded-lg text-[var(--text-2)] font-semibold">
+                <Scale className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Indicators: <strong className="text-[var(--text)]">{runResults.length} scored</strong></span>
+              </div>
+
+              {runResults.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] px-2.5 py-1 rounded-lg text-[var(--text-2)] font-semibold">
+                  <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Avg Confidence: <strong className="text-emerald-400">{(runResults.reduce((acc, c) => acc + (c.confidence || 0), 0) / runResults.length * 100).toFixed(0)}%</strong></span>
+                </div>
+              )}
+            </div>
+
             <button 
               onClick={() => onDeleteRun(runObj.id)}
-              className="btn btn-danger font-bold text-xs"
+              className="btn btn-danger font-bold text-xs self-end md:self-auto cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Purge Database records
+              Purge Database Records
             </button>
           </div>
         </div>
@@ -344,6 +443,7 @@ export default function App() {
 
   // Thinking Orbs & Dashboard Card State
   const [isDashboardCardExpanded, setIsDashboardCardExpanded] = useState<boolean>(true);
+  const [expandedRunIds, setExpandedRunIds] = useState<Record<string, boolean>>({});
 
   // Initial Theme Setup
   useEffect(() => {
@@ -407,6 +507,12 @@ export default function App() {
     setRunEvents(prev => ({ ...prev, [runId]: data.events }));
   }, []);
 
+  const toggleRunExpand = useCallback((runId: string) => {
+    setExpandedRunIds(prev => ({ ...prev, [runId]: !prev[runId] }));
+    loadRunDetail(runId);
+    loadRunEvents(runId);
+  }, [loadRunDetail, loadRunEvents]);
+
   // Auto-fetch details and events for the latest run
   useEffect(() => {
     if (!latestRun?.id) return;
@@ -417,9 +523,13 @@ export default function App() {
   // Auto-refresh
   useEffect(() => {
     if (!autoRefresh) return;
-    const interval = setInterval(fetchAll, 10000);
+    const interval = setInterval(() => {
+      fetchAll();
+      const runId = selectedRunId || latestRun?.id;
+      if (runId) loadRunEvents(runId);
+    }, 10000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchAll]);
+  }, [autoRefresh, fetchAll, selectedRunId, loadRunEvents, latestRun?.id]);
 
   // Load review queue when tab changes
   useEffect(() => {
@@ -478,6 +588,19 @@ export default function App() {
     } else {
       setFeedbackMessage({ text: `Delete failed: ${body}`, type: 'error' });
     }
+  };
+
+  const purgeAllPreviousRuns = async () => {
+    if (!window.confirm('Are you sure you want to purge ALL runs and clear all indicator results from the database? This action cannot be undone.')) return;
+    let count = 0;
+    for (const r of runs) {
+      const [status] = await apiDeleteRun(r.id);
+      if (status === 204) count++;
+    }
+    await fetchAll();
+    setResultsByRun({});
+    setRunEvents({});
+    setFeedbackMessage({ text: `Purged ${count} runs from database.`, type: 'success' });
   };
 
   // ── Review Queue Actions ───────────────────────────────
@@ -1077,14 +1200,26 @@ export default function App() {
           {activeTab === 'runs' && (
             <div className="space-y-6">
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 shadow-xs">
-                <div className="border-b border-[var(--border)] pb-4 mb-4">
-                  <h3 className="text-base font-semibold text-[var(--text)] flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-[var(--accent)] animate-pulse" />
-                    Regulatory Analysis Pipeline Run-History
-                  </h3>
-                  <p className="text-xs text-[var(--text-3)] mt-0.5">
-                    Full history logs of active web searches, document classifications, and consensus score overrides.
-                  </p>
+                <div className="border-b border-[var(--border)] pb-4 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-[var(--text)] flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-[var(--accent)] animate-pulse" />
+                      Regulatory Analysis Pipeline Run-History
+                    </h3>
+                    <p className="text-xs text-[var(--text-3)] mt-0.5">
+                      Full history logs of active web searches, document classifications, and consensus score overrides.
+                    </p>
+                  </div>
+                  {runs.length > 0 && (
+                    <button 
+                      onClick={purgeAllPreviousRuns}
+                      className="btn btn-danger font-bold text-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
+                      title="Purge all previous runs and clear results from database"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Purge All History ({runs.length} Runs)
+                    </button>
+                  )}
                 </div>
 
                 {isLoadingRuns ? (
@@ -1096,54 +1231,149 @@ export default function App() {
                   <div className="py-12 text-center text-xs text-[var(--text-3)]">
                     No runs found. Submit a new analysis to get started.
                   </div>
-                ) : runs.map((rObj) => {
-                    const isSelected = selectedRunId === rObj.id;
-                    return (
-                      <div 
-                        key={rObj.id} 
-                        className={`p-4 rounded-xl border transition-all ${
-                          isSelected 
-                            ? 'border-[var(--accent)] bg-[var(--accent-bg)]' 
-                            : 'border-[var(--border)] hover:border-[var(--border-med)]'
-                        }`}
-                      >
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-2)] font-black text-xs uppercase font-mono">
-                              {rObj.country.slice(0, 3)}
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-bold text-[var(--text)]">
-                                {rObj.country} Compliance Audit Job
-                              </h4>
-                              <p className="text-[11px] text-[var(--text-3)] font-mono mt-0.5">
-                                Run ID: {rObj.id} · Provider: {rObj.llm_provider}
-                              </p>
-                            </div>
-                          </div>
+                ) : (
+                  <div className="tbl-wrap">
+                    <table className="dt" style={{ fontSize: 12 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 36 }}></th>
+                          <th style={{ width: 60, textAlign: 'center' }}>#</th>
+                          <th>Territory / Economy</th>
+                          <th>LLM Engine</th>
+                          <th>Pipeline Status</th>
+                          <th>Completed Indicators</th>
+                          <th>Timestamp</th>
+                          <th style={{ textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {runs.map((rObj, idx) => {
+                          const isExpanded = !!expandedRunIds[rObj.id];
+                          const runResults = resultsByRun[rObj.id] || [];
+                          const serialNo = runs.length - idx;
+                          return (
+                            <React.Fragment key={rObj.id}>
+                              {/* Run Row */}
+                              <tr 
+                                className="hover:bg-[var(--surface2)] transition-colors cursor-pointer"
+                                onClick={() => toggleRunExpand(rObj.id)}
+                              >
+                                <td style={{ textAlign: 'center' }}>
+                                  <ChevronDown className={`w-4 h-4 text-[var(--text-3)] transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[var(--accent)]' : ''}`} />
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[var(--surface2)] text-[var(--accent)] border border-[var(--border)]">
+                                    #{serialNo}
+                                  </span>
+                                </td>
+                                <td style={{ fontWeight: 600, color: 'var(--text)' }}>
+                                  {rObj.country} Audit
+                                </td>
+                                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                                  {rObj.llm_provider}
+                                </td>
+                                <td>
+                                  <span className={`pill ${rObj.status === 'COMPLETE' ? 'pill-green' : rObj.status === 'FAILED' ? 'pill-red' : 'pill-blue'}`}>
+                                    {rObj.status}
+                                  </span>
+                                </td>
+                                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                                  {rObj.completed_indicators}/{rObj.total_indicators} pts ({rObj.total_indicators > 0 ? Math.round((rObj.completed_indicators / rObj.total_indicators) * 100) : 0}%)
+                                </td>
+                                <td style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                                  {new Date(rObj.created_at).toLocaleString()}
+                                </td>
+                                <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                                  <button 
+                                    onClick={() => deleteAnalysisRun(rObj.id)}
+                                    className="btn btn-danger btn-sm font-bold text-xs"
+                                    title="Purge run from database"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Purge
+                                  </button>
+                                </td>
+                              </tr>
 
-                          <div className="flex items-center gap-4">
-                            <span className={`pill ${rObj.status === 'COMPLETE' ? 'pill-green' : 'pill-amber'}`}>
-                              {rObj.status}
-                            </span>
-                            <button 
-                              onClick={() => {
-                                setSelectedRunId(rObj.id);
-                                setActiveTab('dashboard');
-                                setFeedbackMessage({
-                                  text: `Showing compliance map indicators for ${rObj.country}.`,
-                                  type: 'info'
-                                });
-                              }}
-                              className="btn btn-ghost font-bold text-xs"
-                            >
-                              Open Indicator Map
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                              {/* Expanded Results Sub-table (All Results UI) */}
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={8} style={{ padding: 16, background: 'var(--surface2)' }}>
+                                    <div className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border)] space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <h5 className="text-xs font-bold uppercase tracking-wider text-[var(--text-3)] flex items-center gap-1.5">
+                                          <List className="w-3.5 h-3.5 text-[var(--accent)]" />
+                                          Adversarial Arbitration Matrix ({runResults.length} Indicators)
+                                        </h5>
+                                        <span className="text-[11px] text-[var(--text-3)] font-mono">
+                                          Run #{serialNo}
+                                        </span>
+                                      </div>
+
+                                      {runResults.length === 0 ? (
+                                        <div className="py-6 text-center text-xs text-[var(--text-3)] font-mono">
+                                          Loading results or no indicator records found for this run...
+                                        </div>
+                                      ) : (
+                                        <div className="tbl-wrap">
+                                          <table className="dt" style={{ fontSize: 11 }}>
+                                            <thead>
+                                              <tr>
+                                                <th>ID</th><th>Economy</th><th>Law Name</th><th>Law Number / Ref</th>
+                                                <th>Coverage</th><th>Indicator ID</th><th>Article / Section</th>
+                                                <th>Verbatim Snippet</th><th>Score</th><th>Confidence</th><th>Audit</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {runResults.map((r) => {
+                                                const parts = (r.indicator_id || '').split('.');
+                                                const suffix = parts.length > 1 ? parts.slice(1).join('.') : parts[0];
+                                                const rdtiiId = `P${r.pillar_id || ''}-I${suffix}`;
+                                                const citation = (r.article_citation || '');
+                                                const lawRef = citation ? citation.split(',')[0].trim() : '';
+                                                const confidence = r.confidence != null ? (r.confidence * 100).toFixed(0) + '%' : '';
+                                                return (
+                                                  <tr key={r.id}>
+                                                    <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 600 }}>{r.id ?? '—'}</td>
+                                                    <td>{r.country || rObj.country}</td>
+                                                    <td>{(r.act_and_practice || '—').slice(0, 40)}</td>
+                                                    <td>{lawRef || '—'}</td>
+                                                    <td>{r.coverage || 'N/A'}</td>
+                                                    <td>{rdtiiId}</td>
+                                                    <td>{citation || '—'}</td>
+                                                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{(r.verbatim_quote || '—').slice(0, 60)}</td>
+                                                    <td style={{ fontWeight: 700 }}>{r.raw_score != null ? r.raw_score.toFixed(2) : '—'}</td>
+                                                    <td style={{ fontWeight: 700 }}>{confidence}</td>
+                                                    <td>
+                                                      <button 
+                                                        onClick={() => {
+                                                          setSelectedAuditResult(r);
+                                                          setIsAuditOpen(true);
+                                                        }}
+                                                        className="p-1 px-2 text-[var(--accent)] hover:bg-[var(--accent-bg)] bg-transparent border border-transparent rounded transition-all inline-flex items-center gap-1 cursor-pointer font-bold text-xs"
+                                                      >
+                                                        <Eye className="w-3.5 h-3.5" />
+                                                        <span>Audit</span>
+                                                      </button>
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}

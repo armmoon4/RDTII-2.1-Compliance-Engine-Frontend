@@ -61,7 +61,7 @@ export default function ExportsPanel() {
       ) : (
         <>
           <div className="card" style={{ padding: '14px 18px', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', itemsCenter: 'center', justifyContent: 'space-between' }}>
               <div>
                 <strong>Export All Results</strong><br />
                 <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Download aggregated results across all runs</span>
